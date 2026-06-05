@@ -155,7 +155,8 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
 </div>
 
 <div class="form-wrap">
-  <form id="caseForm" novalidate>
+  <form id="caseForm" name="case-submission" data-netlify="true" enctype="multipart/form-data" novalidate>
+    <input type="hidden" name="form-name" value="case-submission">
 
 
     <!-- SECTION 1: Personal Details -->
@@ -547,11 +548,7 @@ document.getElementById('caseForm').addEventListener('submit', async function(e)
   const formData = new FormData(this);
 
   try {
-    formData.append('_subject', 'New Skin Compass Case Submission');
-    formData.append('_captcha', 'false');
-    formData.append('_template', 'table');
-
-    const res = await fetch('https://formsubmit.co/skincompassmy@gmail.com', {
+    const res = await fetch('/', {
       method: 'POST',
       body: formData
     });
