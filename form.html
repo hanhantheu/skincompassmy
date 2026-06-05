@@ -155,7 +155,7 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
 </div>
 
 <div class="form-wrap">
-  <form id="caseForm" name="case-submission" data-netlify="true" enctype="multipart/form-data" novalidate>
+  <form id="caseForm" name="case-submission" method="POST" action="/success.html" data-netlify="true" enctype="multipart/form-data" novalidate>
     <input type="hidden" name="form-name" value="case-submission">
 
 
@@ -533,46 +533,10 @@ function validateForm() {
 }
 
 // ── Form submission ───────────────────────────────────────────────────────
-document.getElementById('caseForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
+document.getElementById('caseForm').addEventListener('submit', function(e) {
   if (!validateForm()) {
+    e.preventDefault();
     document.querySelector('.invalid')?.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
-
-  const btn = document.getElementById('submitBtn');
-  const txt = document.getElementById('submitText');
-  btn.disabled = true;
-  txt.textContent = 'Submitting…';
-
-  const formData = new FormData(this);
-
-  try {
-    const res = await fetch('/', {
-      method: 'POST',
-      body: formData
-    });
-
-    if (res.ok) {
-      // Show success screen
-      document.getElementById('caseForm').style.display = 'none';
-      document.getElementById('successScreen').style.display = 'block';
-      window.scrollTo({top: 0, behavior: 'smooth'});
-
-      // Ping doctor on WhatsApp
-      const name = formData.get('full_name') || 'A client';
-      const concern = formData.get('main_concern') || 'skin condition';
-      const msg = encodeURIComponent(`New Skin Compass submission from ${name} — concern: ${concern}. Please log in to review.`);
-      setTimeout(() => {
-        window.open(`https://wa.me/60129569023?text=${msg}`, '_blank');
-      }, 1500);
-    } else {
-      throw new Error('Submission failed');
-    }
-  } catch (err) {
-    btn.disabled = false;
-    txt.textContent = 'Submit My Case';
-    alert('Something went wrong. Please try again or contact us on WhatsApp.');
   }
 });
 </script>
