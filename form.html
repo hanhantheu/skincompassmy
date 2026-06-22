@@ -101,13 +101,17 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .upload-title{font-size:14px;font-weight:500;color:var(--navy);margin-bottom:4px;}
 .upload-sub{font-size:13px;color:var(--text-muted);}
 .file-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
-.file-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--off-white);border-radius:7px;font-size:13px;color:var(--text-muted);}
-.file-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--off-white);border-radius:7px;font-size:13px;color:var(--text-muted);flex-wrap:wrap;}
+.file-item span:first-child{flex:1 1 100%;min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-size{flex:0 0 auto;white-space:nowrap;}
 .file-remove{cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;flex-shrink:0;}
 .file-remove:hover{color:var(--error);}
-.file-status{flex-shrink:0;font-size:12px;font-weight:500;color:var(--text-muted);}
+.file-status{flex:0 0 auto;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-muted);margin-left:auto;}
 .file-status-ok{color:var(--success);}
 .file-status-error{color:var(--error);}
+@media(max-width:480px){
+  .file-item span:first-child{flex-basis:100%;}
+}
 
 /* DISCLAIMER */
 .disclaimer{background:rgba(179,139,89,0.08);border:1px solid rgba(179,139,89,0.25);border-radius:10px;padding:18px 20px;font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:24px;}
@@ -535,6 +539,44 @@ function updateSubmitState() {
   }
 }
 
+// ── In-browser image compression ───────────────────────────────────────────
+// Phone photos (especially iPhone HEIC) can be 3-8MB at full resolution.
+// Uploading several of those at once over mobile data can overload memory
+// and crash/reload the page on iOS Safari. Resizing to a sane max dimension
+// and re-encoding as JPEG before upload keeps things fast and reliable.
+function compressImage(file) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+      resolve(file); // don't touch PDFs/non-images
+      return;
+    }
+    const MAX_DIM = 1920;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM; }
+          else { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.82);
+      };
+      img.onerror = () => resolve(file); // fall back to original if it won't decode
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 function uploadToCloudinary(file, kind, statusEl) {
   const formData = new FormData();
   formData.append('file', file);
@@ -545,7 +587,7 @@ function uploadToCloudinary(file, kind, statusEl) {
   statusEl.textContent = 'Uploading…';
   statusEl.className = 'file-status';
 
-  fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData })
+  return fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData })
     .then(res => res.json())
     .then(data => {
       if (!data.secure_url) throw new Error(data.error?.message || 'Upload failed');
@@ -566,18 +608,28 @@ function uploadToCloudinary(file, kind, statusEl) {
 }
 
 // ── File upload display + trigger Cloudinary upload ───────────────────────
-function handleFiles(input, listId, kind) {
+// Files are compressed and uploaded ONE AT A TIME (not all in parallel) to
+// keep peak memory/bandwidth use low on phones over slow connections.
+async function handleFiles(input, listId, kind) {
   const list = document.getElementById(listId);
   list.innerHTML = '';
   uploadedUrls[kind] = [];
-  [...input.files].forEach(f => {
+  const files = [...input.files];
+
+  const statusEls = files.map(f => {
     const div = document.createElement('div');
     div.className = 'file-item';
     div.innerHTML = `<span>📎 ${f.name}</span><span class="file-size">${(f.size/1024/1024).toFixed(1)} MB</span><span class="file-status">Queued…</span>`;
     list.appendChild(div);
-    uploadToCloudinary(f, kind, div.querySelector('.file-status'));
+    return div.querySelector('.file-status');
   });
   syncUrlsField(kind);
+
+  for (let i = 0; i < files.length; i++) {
+    statusEls[i].textContent = 'Preparing…';
+    const toUpload = await compressImage(files[i]);
+    await uploadToCloudinary(toUpload, kind, statusEls[i]);
+  }
 }
 
 // ── Validation ────────────────────────────────────────────────────────────
