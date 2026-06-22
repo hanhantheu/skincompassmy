@@ -105,6 +105,9 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .file-item span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .file-remove{cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;flex-shrink:0;}
 .file-remove:hover{color:var(--error);}
+.file-status{flex-shrink:0;font-size:12px;font-weight:500;color:var(--text-muted);}
+.file-status-ok{color:var(--success);}
+.file-status-error{color:var(--error);}
 
 /* DISCLAIMER */
 .disclaimer{background:rgba(179,139,89,0.08);border:1px solid rgba(179,139,89,0.25);border-radius:10px;padding:18px 20px;font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:24px;}
@@ -405,9 +408,9 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
       <p class="section-desc">Upload clear photos of the affected area and any previous reports, blood tests, or specialist letters. The more you include, the richer the assessment.</p>
 
       <div class="field">
-        <label>Photos of affected area <span class="hint">(JPG, PNG — up to 6 files, 2MB each works best)</span></label>
+        <label>Photos of affected area <span class="hint">(JPG, PNG — uploads instantly, no size limit)</span></label>
         <div class="upload-zone" id="photoZone">
-          <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFiles(this,'photoList')">
+          <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFiles(this,'photoList','photos')">
           <div class="upload-icon">📷</div>
           <div class="upload-title">Tap or drag to upload photos</div>
           <div class="upload-sub">Best in good lighting, close-up, without flash</div>
@@ -416,9 +419,9 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
       </div>
 
       <div class="field">
-        <label>Previous reports or documents <span class="hint">(PDF, JPG — blood tests, specialist letters, prescriptions, up to 4 files)</span></label>
+        <label>Previous reports or documents <span class="hint">(PDF, JPG — blood tests, specialist letters, prescriptions)</span></label>
         <div class="upload-zone" id="docZone">
-          <input type="file" id="docInput" accept=".pdf,image/*" multiple onchange="handleFiles(this,'docList')">
+          <input type="file" id="docInput" accept=".pdf,image/*" multiple onchange="handleFiles(this,'docList','documents')">
           <div class="upload-icon">📄</div>
           <div class="upload-title">Tap or drag to upload documents</div>
           <div class="upload-sub">PDFs and images accepted</div>
@@ -426,23 +429,11 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
         </div>
       </div>
 
-      <!-- Netlify Forms only supports ONE file per named field, so the visible
-           pickers above (which allow multi-select for a good UX) have no
-           "name" attribute and are never submitted directly. Right before
-           submit, JS distributes the chosen files across these single-file
-           hidden fields instead. -->
-      <div style="display:none" aria-hidden="true">
-        <input type="file" name="photo_1">
-        <input type="file" name="photo_2">
-        <input type="file" name="photo_3">
-        <input type="file" name="photo_4">
-        <input type="file" name="photo_5">
-        <input type="file" name="photo_6">
-        <input type="file" name="document_1">
-        <input type="file" name="document_2">
-        <input type="file" name="document_3">
-        <input type="file" name="document_4">
-      </div>
+      <!-- Photos/documents upload directly to Cloudinary from the browser
+           (bypasses Netlify Forms' 8MB total-submission cap entirely).
+           Only the resulting URLs are submitted as plain text below. -->
+      <input type="hidden" name="photo_urls" id="photoUrls">
+      <input type="hidden" name="document_urls" id="documentUrls">
 
       <div class="field">
         <label>Anything else you'd like us to know?</label>
@@ -516,16 +507,77 @@ function setScore(pip) {
   track.nextElementSibling.nextElementSibling.value = val;
 }
 
-// ── File upload display ───────────────────────────────────────────────────
-function handleFiles(input, listId) {
+// ── Cloudinary direct upload ───────────────────────────────────────────────
+// Photos/documents upload straight from the browser to Cloudinary, bypassing
+// Netlify Forms' 8MB total-submission cap. Only the resulting URLs are sent
+// through the Netlify form as plain text (photo_urls / document_urls).
+const CLOUDINARY_CLOUD_NAME = 'dbpdpq6wb';
+const CLOUDINARY_UPLOAD_PRESET = 'skin_compass_uploads';
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+
+const uploadedUrls = { photos: [], documents: [] };
+let activeUploads = 0;
+
+function syncUrlsField(kind) {
+  const fieldId = kind === 'photos' ? 'photoUrls' : 'documentUrls';
+  document.getElementById(fieldId).value = uploadedUrls[kind].join(', ');
+}
+
+function updateSubmitState() {
+  const btn = document.getElementById('submitBtn');
+  const text = document.getElementById('submitText');
+  if (activeUploads > 0) {
+    btn.disabled = true;
+    text.textContent = `Uploading files… (${activeUploads} left)`;
+  } else {
+    btn.disabled = false;
+    text.textContent = 'Submit My Case';
+  }
+}
+
+function uploadToCloudinary(file, kind, statusEl) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  activeUploads++;
+  updateSubmitState();
+  statusEl.textContent = 'Uploading…';
+  statusEl.className = 'file-status';
+
+  fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.secure_url) throw new Error(data.error?.message || 'Upload failed');
+      uploadedUrls[kind].push(data.secure_url);
+      syncUrlsField(kind);
+      statusEl.textContent = 'Uploaded ✓';
+      statusEl.className = 'file-status file-status-ok';
+    })
+    .catch(err => {
+      statusEl.textContent = 'Upload failed';
+      statusEl.className = 'file-status file-status-error';
+      console.error('Cloudinary upload error:', err);
+    })
+    .finally(() => {
+      activeUploads--;
+      updateSubmitState();
+    });
+}
+
+// ── File upload display + trigger Cloudinary upload ───────────────────────
+function handleFiles(input, listId, kind) {
   const list = document.getElementById(listId);
   list.innerHTML = '';
+  uploadedUrls[kind] = [];
   [...input.files].forEach(f => {
     const div = document.createElement('div');
     div.className = 'file-item';
-    div.innerHTML = `<span>📎 ${f.name}</span><span class="file-size">${(f.size/1024/1024).toFixed(1)} MB</span>`;
+    div.innerHTML = `<span>📎 ${f.name}</span><span class="file-size">${(f.size/1024/1024).toFixed(1)} MB</span><span class="file-status">Queued…</span>`;
     list.appendChild(div);
+    uploadToCloudinary(f, kind, div.querySelector('.file-status'));
   });
+  syncUrlsField(kind);
 }
 
 // ── Validation ────────────────────────────────────────────────────────────
@@ -550,26 +602,13 @@ function validateForm() {
   return valid;
 }
 
-// ── File distribution (Netlify allows only 1 file per named field) ────────
-// The visible pickers (#photoInput, #docInput) have no "name" so they never
-// submit directly. Before the form posts, copy each selected file into its
-// own hidden single-file input (photo_1..photo_6, document_1..document_4).
-function distributeFiles(sourceInput, hiddenInputs) {
-  const files = [...sourceInput.files].slice(0, hiddenInputs.length);
-  files.forEach((file, i) => {
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    hiddenInputs[i].files = dt.files;
-  });
-}
-
 // ── Form submission ───────────────────────────────────────────────────────
 document.getElementById('caseForm').addEventListener('submit', function(e) {
-  const photoHiddenInputs = [...document.querySelectorAll('input[name^="photo_"]')];
-  const docHiddenInputs = [...document.querySelectorAll('input[name^="document_"]')];
-  distributeFiles(document.getElementById('photoInput'), photoHiddenInputs);
-  distributeFiles(document.getElementById('docInput'), docHiddenInputs);
-
+  if (activeUploads > 0) {
+    e.preventDefault();
+    alert('Please wait for your photos/documents to finish uploading before submitting.');
+    return;
+  }
   if (!validateForm()) {
     e.preventDefault();
     document.querySelector('.invalid')?.scrollIntoView({behavior:'smooth', block:'center'});
