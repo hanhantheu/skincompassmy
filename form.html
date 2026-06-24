@@ -505,10 +505,17 @@ function setScore(pip) {
   const track = pip.closest('.score-track');
   const pips = [...track.querySelectorAll('.score-pip')];
   const idx = pips.indexOf(pip);
-  pips.forEach((p, i) => p.classList.toggle('lit', i <= idx));
-  const val = idx + 1;
-  track.nextElementSibling.textContent = val;
-  track.nextElementSibling.nextElementSibling.value = val;
+  const currentVal = parseInt(track.nextElementSibling.nextElementSibling.value);
+  // Clicking the currently-selected pip resets to 0
+  if (currentVal === idx + 1) {
+    pips.forEach(p => p.classList.remove('lit'));
+    track.nextElementSibling.textContent = 0;
+    track.nextElementSibling.nextElementSibling.value = 0;
+  } else {
+    pips.forEach((p, i) => p.classList.toggle('lit', i <= idx));
+    track.nextElementSibling.textContent = idx + 1;
+    track.nextElementSibling.nextElementSibling.value = idx + 1;
+  }
 }
 
 // ── Cloudinary direct upload ───────────────────────────────────────────────
