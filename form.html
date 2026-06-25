@@ -169,7 +169,7 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
     <!-- SECTION 1: Personal Details -->
     <div class="form-section">
       <div class="section-num">Section 1 of 5</div>
-      <h2 class="section-title">Personal Details</h2>
+      <h2 class="section-title">Patient Personal Details</h2>
       <p class="section-desc">Basic information so we can identify your case.</p>
 
       <div class="field field-row">
@@ -231,9 +231,9 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
         <div class="field-error" id="for_whom_error">Please select one.</div>
       </div>
 
-      <div class="field" id="childAgeField" style="display:none;">
-        <label>Child's Age</label>
-        <input type="text" name="child_age" placeholder="e.g. 4 years old">
+      <div class="field" id="submitterNameField" style="display:none;">
+        <label>Your Name <span class="req">*</span></label>
+        <input type="text" name="submitter_name" placeholder="e.g. Fatimah binti Ahmad (parent / family member / referring doctor)">
       </div>
     </div>
 
@@ -417,7 +417,7 @@ input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
           <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFiles(this,'photoList','photos')">
           <div class="upload-icon">📷</div>
           <div class="upload-title">Tap or drag to upload photos</div>
-          <div class="upload-sub">Best in good lighting, close-up, without flash</div>
+          <div class="upload-sub">Best in good lighting — include an overview of the affected area, close-up shots, and if relevant -- multiple angles</div>
           <div class="file-list" id="photoList"></div>
         </div>
       </div>
@@ -488,7 +488,9 @@ function selectOption(label, groupName) {
   label.querySelector('input').checked = true;
   if (groupName === 'for_whom') {
     const val = label.querySelector('input').value;
-    document.getElementById('childAgeField').style.display = val === 'My child' ? 'block' : 'none';
+    const showName = val !== 'Myself';
+    document.getElementById('submitterNameField').style.display = showName ? 'block' : 'none';
+    document.querySelector('[name="submitter_name"]').required = showName;
   }
   updateProgress();
 }
