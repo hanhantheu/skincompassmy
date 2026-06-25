@@ -56,7 +56,7 @@ nav{background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);border-bottom:1
 /* FIELDS */
 .field{margin-bottom:22px;}
 .field:last-child{margin-bottom:0;}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.field-row{display:grid;grid-template-columns:1fr;gap:0;}
 label{font-size:13px;font-weight:500;color:var(--navy);display:block;margin-bottom:8px;letter-spacing:0.02em;}
 label .req{color:var(--gold);}
 label .hint{font-weight:300;color:var(--text-muted);font-size:12px;margin-left:4px;}
@@ -136,7 +136,6 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 input.invalid,textarea.invalid,select.invalid{border-color:var(--error);}
 
 @media(max-width:600px){
-  .field-row{grid-template-columns:1fr;}
   .form-section{padding:24px;}
   .score-name{width:100px;font-size:13px;}
 }
@@ -662,6 +661,29 @@ function validateForm() {
   }
   return valid;
 }
+
+// ── Pre-fill from homepage preview ───────────────────────────────────────
+(function() {
+  const mc = sessionStorage.getItem('sc_main_concern');
+  const sj = sessionStorage.getItem('sc_skin_journey');
+  if (mc) { document.querySelector('[name="main_concern"]').value = mc; sessionStorage.removeItem('sc_main_concern'); }
+  if (sj) { document.querySelector('[name="skin_journey"]').value = sj; sessionStorage.removeItem('sc_skin_journey'); }
+
+  ['itch','pain','sleep','impact'].forEach(name => {
+    const val = parseInt(sessionStorage.getItem('sc_score_' + name) || '0');
+    sessionStorage.removeItem('sc_score_' + name);
+    if (val > 0) {
+      const track = document.querySelector(`[data-name="score_${name}"]`);
+      if (!track) return;
+      const pips = [...track.querySelectorAll('.score-pip')];
+      pips.forEach((p, i) => p.classList.toggle('lit', i < val));
+      track.nextElementSibling.textContent = val;
+      track.nextElementSibling.nextElementSibling.value = val;
+    }
+  });
+
+  if (mc || sj) updateProgress();
+})();
 
 // ── Form submission ───────────────────────────────────────────────────────
 document.getElementById('caseForm').addEventListener('submit', function(e) {

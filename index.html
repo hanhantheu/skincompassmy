@@ -109,16 +109,20 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 .intake-inner{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start;}
 .intake-desc{font-size:16px;color:var(--text-muted);margin-top:20px;line-height:1.8;font-weight:300;}
 .form-preview{background:var(--off-white);border:1px solid var(--border);border-radius:14px;padding:32px;}
+.form-preview input,.form-preview textarea{cursor:text;}
+.form-input:focus{outline:none;border-color:#4a90d9;}
 .form-group{margin-bottom:22px;}
 .form-label{font-size:13px;font-weight:500;color:var(--navy);margin-bottom:8px;display:block;letter-spacing:0.02em;}
 .form-input{width:100%;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;color:var(--text-muted);font-family:'DM Sans',sans-serif;resize:none;}
 .form-input.textarea{height:80px;}
-.score-group{display:flex;flex-direction:column;gap:12px;margin-bottom:22px;}
-.score-row{display:flex;align-items:center;gap:14px;}
-.score-label{font-size:13px;color:var(--text-muted);width:120px;flex-shrink:0;font-weight:400;}
-.score-dots{display:flex;gap:6px;}
-.score-dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--white);}
-.score-dot.active{background:var(--navy);border-color:var(--navy);}
+.score-group{display:flex;flex-direction:column;gap:18px;margin-bottom:22px;}
+.score-row{display:flex;align-items:center;gap:16px;}
+.score-label{font-size:14px;color:var(--text);width:140px;flex-shrink:0;}
+.score-track{flex:1;display:flex;gap:6px;}
+.score-pip{width:100%;height:32px;border-radius:6px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;transition:all 0.15s;}
+.score-pip:hover{border-color:var(--navy);}
+.score-pip.lit{background:var(--navy);border-color:var(--navy);}
+.score-val{font-size:13px;color:var(--text-muted);width:28px;text-align:right;flex-shrink:0;}
 .upload-area{border:1.5px dashed var(--gold);border-radius:10px;padding:24px;text-align:center;background:rgba(179,139,89,0.04);}
 .upload-icon{font-size:24px;color:var(--gold);margin-bottom:8px;}
 .upload-text{font-size:13px;color:var(--text-muted);}
@@ -141,6 +145,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 .cta h2{font-size:clamp(28px,3.5vw,44px);color:var(--white);font-weight:400;margin-bottom:20px;}
 .cta h2 em{font-style:italic;}
 .cta p{font-size:17px;color:rgba(255,255,255,0.65);max-width:520px;margin:0 auto 40px;font-weight:300;line-height:1.75;}
+/* FLOATING CTA */
+.float-cta{position:fixed;bottom:28px;right:28px;z-index:200;background:var(--gold);color:#fff;padding:13px 22px;border-radius:50px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(23,37,84,0.3);display:flex;align-items:center;gap:8px;text-decoration:none;opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity 0.3s ease,transform 0.3s ease;}
+.float-cta.visible{opacity:1;transform:translateY(0);pointer-events:auto;}
+.float-cta:hover{background:var(--gold-light);}
+.float-cta svg{width:15px;height:15px;flex-shrink:0;}
+@media(max-width:600px){.float-cta{bottom:20px;right:16px;padding:11px 18px;font-size:13px;}}
 /* FOOTER */
 footer{padding:60px 5%;background:var(--navy);border-top:1px solid rgba(255,255,255,0.08);}
 .footer-inner{max-width:1100px;margin:0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:40px;flex-wrap:wrap;}
@@ -177,6 +187,10 @@ footer{padding:60px 5%;background:var(--navy);border-top:1px solid rgba(255,255,
     </a>
   </div>
 </nav>
+<a href="form.html" id="floatCta" class="float-cta">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  Start Assessment
+</a>
 <!-- HERO -->
 <section class="hero">
   <div class="hero-inner">
@@ -406,32 +420,42 @@ footer{padding:60px 5%;background:var(--navy);border-top:1px solid rgba(255,255,
       <div class="form-preview">
         <div class="form-group">
           <label class="form-label">Main Concern</label>
-          <input class="form-input" type="text" placeholder="e.g. Recurring facial rash, 8 months">
+          <input id="preview_main_concern" class="form-input" type="text" placeholder="e.g. Recurring facial rash, 8 months">
         </div>
         <div class="form-group">
           <label class="form-label">Skin Journey</label>
-          <textarea class="form-input textarea" placeholder="Describe your experience — when it started, what has been tried, how it has changed..."></textarea>
+          <textarea id="preview_skin_journey" class="form-input textarea" placeholder="Describe your experience — when it started, what has been tried, how it has changed..."></textarea>
         </div>
         <div class="form-group">
           <div class="score-block-label">Symptom Scores</div>
           <div class="score-group">
             <div class="score-row">
               <span class="score-label">Itch</span>
-              <div class="score-dots">
-                <div class="score-dot active"></div><div class="score-dot active"></div><div class="score-dot active"></div><div class="score-dot"></div><div class="score-dot"></div>
+              <div class="score-track" data-score="itch">
+                <div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div>
               </div>
+              <span class="score-val">0</span>
             </div>
             <div class="score-row">
-              <span class="score-label">Pain</span>
-              <div class="score-dots">
-                <div class="score-dot active"></div><div class="score-dot"></div><div class="score-dot"></div><div class="score-dot"></div><div class="score-dot"></div>
+              <span class="score-label">Pain / Burning</span>
+              <div class="score-track" data-score="pain">
+                <div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div>
               </div>
+              <span class="score-val">0</span>
             </div>
             <div class="score-row">
-              <span class="score-label">Sleep Disturbance</span>
-              <div class="score-dots">
-                <div class="score-dot active"></div><div class="score-dot active"></div><div class="score-dot"></div><div class="score-dot"></div><div class="score-dot"></div>
+              <span class="score-label">Sleep Disruption</span>
+              <div class="score-track" data-score="sleep">
+                <div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div>
               </div>
+              <span class="score-val">0</span>
+            </div>
+            <div class="score-row">
+              <span class="score-label">Daily Impact</span>
+              <div class="score-track" data-score="impact">
+                <div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div><div class="score-pip" onclick="setPreviewScore(this)"></div>
+              </div>
+              <span class="score-val">0</span>
             </div>
           </div>
         </div>
@@ -439,7 +463,7 @@ footer{padding:60px 5%;background:var(--navy);border-top:1px solid rgba(255,255,
           <div class="upload-icon">↑</div>
           <div class="upload-text">Photos · PDFs · Previous Reports</div>
         </div>
-        <a href="form.html" class="btn-navy-full">Continue Assessment</a>
+        <a href="form.html" class="btn-navy-full" onclick="savePreviewValues()">Continue Assessment</a>
       </div>
     </div>
   </div>
@@ -508,6 +532,42 @@ function toggleFaq(el) {
   const isOpen = item.classList.contains('open');
   document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
   if (!isOpen) item.classList.add('open');
+}
+
+// ── Floating CTA ──────────────────────────────────────────────────────────
+(function() {
+  const btn = document.getElementById('floatCta');
+  const hero = document.querySelector('.hero');
+  function onScroll() {
+    const heroBottom = hero.getBoundingClientRect().bottom;
+    btn.classList.toggle('visible', heroBottom < 0);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+})();
+
+function setPreviewScore(pip) {
+  const track = pip.closest('.score-track');
+  const pips = [...track.querySelectorAll('.score-pip')];
+  const idx = pips.indexOf(pip);
+  const valEl = track.nextElementSibling;
+  const currentVal = parseInt(valEl.textContent);
+  if (currentVal === idx + 1) {
+    pips.forEach(p => p.classList.remove('lit'));
+    valEl.textContent = 0;
+  } else {
+    pips.forEach((p, i) => p.classList.toggle('lit', i <= idx));
+    valEl.textContent = idx + 1;
+  }
+}
+
+function savePreviewValues() {
+  const mc = document.getElementById('preview_main_concern').value.trim();
+  const sj = document.getElementById('preview_skin_journey').value.trim();
+  if (mc) sessionStorage.setItem('sc_main_concern', mc);
+  if (sj) sessionStorage.setItem('sc_skin_journey', sj);
+  document.querySelectorAll('.score-track[data-score]').forEach(track => {
+    sessionStorage.setItem('sc_score_' + track.dataset.score, track.nextElementSibling.textContent);
+  });
 }
 </script>
 </body>
